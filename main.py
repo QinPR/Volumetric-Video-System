@@ -20,6 +20,7 @@ from aiortc import (
 )
 import psutil
 import pandas as pd
+import numpy as np
 
 import config as config
 
@@ -29,7 +30,6 @@ Timer = -1
 current_file_index = 0
 total_spend_time = 0
 spend_time_list = []
-speed_list = []
 PLY_Data_List = sorted(os.listdir(config.Full_Data_Path))
 
 
@@ -81,14 +81,16 @@ async def offer(request):
 
 pcs = set()
 
-def speed_test() -> float:
+
+def speed_test(test_gap: int = 10) -> float:
     '''
         Return the current Upload speed by Mbps
+        Since the psutil.net_io_counters() records the throughput every 10s, the test_gap should be at least 10s. 
     '''
     sent_before = psutil.net_io_counters().bytes_sent
-    time.sleep(1)
+    time.sleep(test_gap)
     sent_now = psutil.net_io_counters().bytes_sent
-    upload_speed = (sent_now - sent_before) / 1024 / 1024
+    upload_speed = (sent_now - sent_before) / 1024 / 1024 / test_gap
 
     return upload_speed
 
@@ -124,30 +126,27 @@ async def server(pc, offer, data_channel):
             global total_spend_time
             global current_file_index
             global spend_time_list
-            global speed_list
             if channel.readyState == 'open':
                 if message == 'User End Establish Data Channel':    # The User end establish the data channel.
-                    logger.info('The current speed is {}Mbps'.format(speed_test()))
+                    #logger.info('The current speed is {}Mbps'.format(speed_test()))
                     channel.send('Server End Establish Data Channel')
                 elif message == 'Start Transmit':
                     if Timer != -1:
                         spent_time = time.time() - Timer     # Timer End!
                         total_spend_time += spent_time
                         spend_time_list.append(spent_time)
-                        current_upload_speed = speed_test()
-                        speed_list.append(current_upload_speed)
                         logger.info('{} spent {}s to transmit.'.format(PLY_Data_List[current_file_index], spent_time))
                         current_file_index += 1
                     if current_file_index >= len(PLY_Data_List):    # All the ply file has been sent out.
                         channel.send('over')
                         logger.info('Over! The total spend time is {}s'.format(total_spend_time))
                         try:
-                            df = pd.DataFrame({'time': spend_time_list, 'speed': speed_list})
+                            df = pd.DataFrame({'time': spend_time_list})
                             df.to_csv('./result.csv')    # Store the result
                         except:
                             pass
                         with open('./result1.json', 'w') as f:
-                            json.dump({'time': spend_time_list, 'speed': speed_list}, f)
+                            json.dump({'time': spend_time_list}, f)
                     else:
                         file_path = '{}\{}'.format(config.Full_Data_Path, PLY_Data_List[current_file_index])
                         file_size = os.path.getsize(file_path) / 1024 / 1024
