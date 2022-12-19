@@ -7,12 +7,25 @@
         padding: 8px 16px;
     }
     </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.138.0/build/three.module.js",
+                "OrbitControls": "https://unpkg.com/three@0.138.0/examples/jsm/controls/OrbitControls.js"
+            }
+        }
+    </script>
 </head>
 <body>
 
-<button id="start" onclick="start()">Start Transmitting!</button>
-<div id="transmitting" style="display: none">Transmitting...</div>
+    <script src="//wow.techbrood.com/libs/three.r73.js"></script>
+    <script type='module' src="/js/client.js"></script>
+    <script type='module' src="/js/pcd_loader.js"></script>
+    <script type='module' src="/js/visualize_3d.js"></script>
 
-<script src="client.js"></script>
+    <button id="start">Transmitting...</button>
+    <div id="transmitting" style="display: none">Transmitting...</div>
+
+
 </body>
 </html>

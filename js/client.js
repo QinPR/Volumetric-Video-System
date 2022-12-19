@@ -1,7 +1,10 @@
-var pc = null;
+var current_cache_store_index = 0;
+let caught = 0;
 
+// 1. Handle the WebRTC transmit logic.
+var pc = null;
 function negotiate () {
-// Create the user end's SDP
+	// Create the user end's SDP
 	return pc.createOffer().then(function (offer) {
 	// Record the local SDP
 		return pc.setLocalDescription(offer);
@@ -56,7 +59,7 @@ function start () {
 	pc = new RTCPeerConnection(config);
 
 	// Create the Channel to transmit data.
-	sendChannel = pc.createDataChannel('sendDataChannel');
+	var sendChannel = pc.createDataChannel('sendDataChannel');
 
 	// Send the file to server end through RTC
 	sendChannel.onopen = (_) => {
@@ -73,6 +76,9 @@ function start () {
 			console.log('All the files has been transmitted.')
 		}
 		else{
+			THREE.Cache.add(current_cache_store_index.toString(), event.data);
+			current_cache_store_index += 1
+			caught = 1;
 			sendChannel.send('Start Transmit');    // Start transmit the data.
 		}
 	}
@@ -82,3 +88,13 @@ function start () {
 	console.log('Start to negotiate!');
 	negotiate();
 }
+
+
+function return_caught(){
+	return caught;
+}
+
+
+start();
+
+export { return_caught, current_cache_store_index };

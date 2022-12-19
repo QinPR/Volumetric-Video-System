@@ -41,11 +41,27 @@ async def index(request):
     return web.Response(content_type="text/html", text=content)
 
 
-async def javascript(request):
+async def client_js(request):
     '''
         js
     '''
-    content = open(os.path.join(ROOT, "client.js"), "r").read()
+    content = open('./js/client.js', "r").read()
+    return web.Response(content_type="application/javascript", text=content)
+
+
+async def pcd_loader_js(request):
+    '''
+        js
+    '''
+    content = open("./js/pcd_loader.js", "r").read()
+    return web.Response(content_type="application/javascript", text=content)
+
+
+async def visualize_3d(request):
+    '''
+        js
+    '''
+    content = open("./js/visualize_3d.js", "r").read()
     return web.Response(content_type="application/javascript", text=content)
 
 
@@ -179,7 +195,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Volumentric Video System")
     parser.add_argument(
-        "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
+        "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
     )
     parser.add_argument(
         "--port", type=int, default=42345, help="Port for HTTP server (default: 42345)"
@@ -192,6 +208,8 @@ if __name__ == "__main__":
     app = web.Application()
     app.on_shutdown.append(on_shutdown)
     app.router.add_get("/", index)
-    app.router.add_get("/client.js", javascript)
+    app.router.add_get("/js/client.js", client_js)
+    app.router.add_get("/js/pcd_loader.js", pcd_loader_js)
+    app.router.add_get("/js/visualize_3d.js", visualize_3d)
     app.router.add_post("/offer", offer)
     web.run_app(app, host=args.host, port=args.port)
