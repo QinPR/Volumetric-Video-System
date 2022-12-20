@@ -1,8 +1,11 @@
 var current_cache_store_index = 0;
 let caught = 0;
 
+
 // 1. Handle the WebRTC transmit logic.
 var pc = null;
+var clear = 0;  // if it clear == 1, the scene should be cleared.
+
 function negotiate () {
 	// Create the user end's SDP
 	return pc.createOffer().then(function (offer) {
@@ -70,16 +73,29 @@ function start () {
 	// Handle the returned data from user end.
 	sendChannel.onmessage = (event) => {
 		if (event.data == 'Server End Establish Data Channel'){
+			console.log('Receive Estabalish Channel');
 			sendChannel.send('Start Transmit');    // Start transmit the data.
 		}
 		else if (event.data == 'over'){      // All the data has been transmitted.
 			console.log('All the files has been transmitted.')
 		}
-		else{
-			THREE.Cache.add(current_cache_store_index.toString(), event.data);
-			current_cache_store_index += 1
-			caught = 1;
+		// else if (event.data == 'start frame'){
+		// 	console.log('Receive start frame');
+		// }
+		else if (event.data == 'end frame'){
+			console.log('Receive end frame');
+			// THREE.Cache.add(current_cache_store_index.toString(), new Float32Array(send_array));
+			// current_cache_store_index += 1
+			// caught += 1;
+			clear = 1;
 			sendChannel.send('Start Transmit');    // Start transmit the data.
+		}
+		else{
+			console.log('Receive chunk');
+			clear = 0;
+			THREE.Cache.add(current_cache_store_index.toString(),event.data);
+			current_cache_store_index += 1
+			caught += 1;
 		}
 	}
 
@@ -94,7 +110,11 @@ function return_caught(){
 	return caught;
 }
 
+function return_clear(){
+	return clear;
+}
+
 
 start();
 
-export { return_caught, current_cache_store_index };
+export { return_caught, return_clear };

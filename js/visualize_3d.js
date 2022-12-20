@@ -1,10 +1,8 @@
-import { PCDLoader } from './pcd_loader.js'
-import { return_caught } from './client.js'
-import { PLYLoader } from 'https://unpkg.com/three@0.138.0/examples/jsm/loaders/PLYLoader.js'
+import { return_caught, return_clear } from './client.js'
 
 // 0. Enable a cache to store the ply file
 THREE.Cache.enabled = true;
-export var current_cache_display_index = 0
+var current_cache_display_index = 0
 
 // 2. Visualize the ply files
 var scene = new THREE.Scene();
@@ -12,48 +10,50 @@ var camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeigh
 
 var renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setClearColor('rgb(255,255,255)', 0);
 document.body.appendChild( renderer.domElement );
 
-// The demo before is creating a cube and display
-// var geometry = new THREE.BoxGeometry( 1, 1, 1 );
-// var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-// var cube = new THREE.Mesh( geometry, material );
-
-// Now, we would like to display the ply file that got from webrtc channel
-
-// scene.add( cube );
-
-camera.position.z = 5;
+camera.position.set(0, 0, -2);
+camera.lookAt(new THREE.Vector3(0, 0, 0));
 var display_object = null;
-var loader = new PLYLoader();
+var pointcloud = null;
+var expected_caught = 1;
 
-
-var render = function () {
-	requestAnimationFrame( render );
-	// cube.rotation.x += 0.1;
-	// cube.rotation.y += 0.1;
-	if (return_caught() == 1){
-		
-		// display_object = JSON.parse(THREE.Cache.get(current_cache_display_index.toString()));
-        display_object = THREE.Cache.get(current_cache_display_index.toString());
-
-		loader.load(display_object, function (geometry) {
-            console.log('OK here');
-			// const material = new THREE.PointsMaterial({
-            //     color: 0xffffff,
-            //     size: 0.4,
-            //     opacity: 0.6,
-            //     transparent: true,
-            //     blending: THREE.AdditiveBlending,
-            // });
-            var mesh = new THREE.Points(geometry);
-            console.log('hello there!');
-            scene.add( mesh );
-        });
-        current_cache_display_index = current_cache_display_index + 1;
-	}
-
-	renderer.render(scene, camera);
+function return_scene(){
+    return scene;
 };
 
-render();
+function animate() {
+    //requestAnimationFrame( animate );
+    if (return_clear() == 1){
+        if (return_caught() >= expected_caught){
+            if(scene.children.length > 0){ 
+                scene.remove(scene.children[0]); 
+            }
+            var array = []
+            while (current_cache_display_index < return_caught()){
+                console.log('The current_cache_display_index is ', current_cache_display_index);
+                array = array.concat(JSON.parse(THREE.Cache.get(current_cache_display_index.toString())));
+                THREE.Cache.remove(current_cache_display_index.toString());
+                current_cache_display_index += 1;
+                expected_caught += 1;
+            }
+            display_object = new Float32Array(array);
+            const geometry = new THREE.BufferGeometry();
+            var attribute = new THREE.BufferAttribute(display_object, 3);      // 3 means axis-xyz
+            geometry.addAttribute( 'position' , attribute);  
+            const material = new THREE.PointsMaterial( { color: 0x00ff00, size: 0.005 } );
+            pointcloud = new THREE.Points(geometry, material);
+            scene.add( pointcloud );
+            console.log('Successfule add pointcloud!');
+        }
+    }
+    renderer.render(scene, camera);
+};
+
+// animate();
+setInterval(function () {
+    animate();
+}, 500);
+
+export { return_scene };

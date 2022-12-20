@@ -11,6 +11,7 @@ import platform
 import ssl
 import time
 import json
+import sys
 
 from aiohttp import web
 from aiortc import (
@@ -21,6 +22,8 @@ from aiortc import (
 import psutil
 import pandas as pd
 import numpy as np
+import ujson
+from plyfile import PlyData, PlyElement
 
 import config as config
 
@@ -111,6 +114,13 @@ def speed_test(test_gap: int = 10) -> float:
     return upload_speed
 
 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
 async def server(pc, offer, data_channel):
     # Listen the connection status of RTC
     @pc.on("connectionstatechange")
@@ -134,7 +144,10 @@ async def server(pc, offer, data_channel):
 
     # Listen the Data from the user end, and start transmit the volumetric data to user end.
     @pc.on("datachannel")
-    def on_message(channel):
+    def on_message(channel, vertice_chunk_size: int = 50000):
+        '''
+            vertice_chunk_size: The maximum number of vertices to be transmitted in one time
+        '''
         logger.info('Got the start message!')
         @channel.on("message")
         def on_message(message):
@@ -168,9 +181,31 @@ async def server(pc, offer, data_channel):
                         file_size = os.path.getsize(file_path) / 1024 / 1024
                         logger.info('=' * 40)
                         logger.info('Begin to transmit {} (size = {}Mb)'.format(PLY_Data_List[current_file_index], file_size))
-                        with open(file_path) as f:
-                            Timer = time.time()    # Timer Start!
-                            channel.send(f.read())
+                        # with open(file_path) as f:
+                            # channel.send(f.read())
+                        
+                        plydata = PlyData.read(file_path)
+                        rawdata = plydata.elements[0].data
+                        data_pd = pd.DataFrame(rawdata)
+                        data_np = np.zeros((data_pd.shape[0], 3), dtype=np.float32)
+                        property_names = rawdata[0].dtype.names
+                        for i, name in enumerate(('x', 'y', 'z')):
+                            data_np[:, i] = data_pd[name]
+
+                        Timer = time.time()    # Timer Start!
+                        
+                        start_index = 0
+                        # channel.send('start frame')
+                        while start_index < data_np.shape[0]:
+                            if start_index + vertice_chunk_size > data_np.shape[0]:
+                                send_string = ujson.dumps(data_np[start_index:].flatten().tolist())
+                            else:
+                                send_string = ujson.dumps(data_np[start_index:start_index + vertice_chunk_size].flatten().tolist())    # because channel.send only support transmitting string.
+                            channel.send(send_string)
+                            start_index += vertice_chunk_size
+                            logger.info('OK here')
+                            time.sleep(0.5)
+                        channel.send('end frame')
             else:
                 logger.info('The State of DataChannel is not ready.')
 
@@ -194,8 +229,11 @@ async def on_shutdown(app):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Volumentric Video System")
+    # parser.add_argument(
+    #     "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
+    # )
     parser.add_argument(
-        "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
+        "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
     )
     parser.add_argument(
         "--port", type=int, default=42345, help="Port for HTTP server (default: 42345)"
