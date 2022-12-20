@@ -25,3 +25,20 @@
     + **Total size: ** 1.66GB
     + **Total duration of transmission: ** 44.87525129318237s
 
+---
+
+### 2. Tiling
+
++ Tiling each ply file into several blocks, then only transmit the blocks that can be seen by users.
+
++ The original ply file:
+
+  ![1671432992968](./pictures/Vive_Fusion_Result_627.JPG)
+
+---
+
+### 3. Demo
+
+The following is the demo we captured from the browser (The Volumetric Video is transmitted end to end by WebRTC protocol). 
+
+![1671432992968](./pictures/Demo1.gif)
