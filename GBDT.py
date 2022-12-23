@@ -34,6 +34,7 @@ def load_dataset() -> dict:
         train = 1
         if each_traning_exp_group_i > len(training_exp_list) * config.trainining_validation_split:
             train = 0     # for validation
+            logger.info(training_exp_list[each_traning_exp_group_i])
         each_traning_exp_group = training_exp_list[each_traning_exp_group_i]
         exp_path = '{}\\{}'.format(config.Viewpoint_Dataset, each_traning_exp_group)
         detailed_exp_list = os.listdir(exp_path)
@@ -111,6 +112,6 @@ if __name__ == '__main__':
 
     GBDT_instance = GBDT(train, val)
 
-    # GBDT_instance.train()
+    GBDT_instance.train()
 
     GBDT_instance.valiate()

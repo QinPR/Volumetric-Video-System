@@ -1,4 +1,4 @@
-import { return_caught, return_clear } from './client.js'
+import { return_caught, return_clear } from './client.js';
 
 // 0. Enable a cache to store the ply file
 THREE.Cache.enabled = true;
@@ -13,7 +13,7 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setClearColor('rgb(255,255,255)', 0);
 document.body.appendChild( renderer.domElement );
 
-camera.position.set(0, 0, -2);
+camera.position.set(0.535 * 4, 0, 0.575 * 4);
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 var display_object = null;
 var pointcloud = null;
@@ -32,7 +32,6 @@ function animate() {
             }
             var array = []
             while (current_cache_display_index < return_caught()){
-                console.log('The current_cache_display_index is ', current_cache_display_index);
                 array = array.concat(JSON.parse(THREE.Cache.get(current_cache_display_index.toString())));
                 THREE.Cache.remove(current_cache_display_index.toString());
                 current_cache_display_index += 1;
@@ -54,6 +53,36 @@ function animate() {
 // animate();
 setInterval(function () {
     animate();
-}, 500);
+}, 50);
+
+
+var current_time_index = 1;    // every one means 10ms
+var current_view_point = null;
+var viewpoint_testset = null;
+var get_dataset = 0;   // A flag indicating whether the dataset is loaded.
+var url = './js/viewport_change.json';
+var request = new XMLHttpRequest();
+request.open('get', url)
+request.send(null);
+request.onload = function() {
+    if (request.status == 200) {
+        viewpoint_testset = JSON.parse(request.responseText);
+        get_dataset = 1;
+    }
+}
+
+function change_view() {
+    if (get_dataset == 1){
+        current_view_point = [viewpoint_testset['x'][current_time_index]  * 4, 0, viewpoint_testset['z'][current_time_index] * 4];
+        camera.position.set(viewpoint_testset['x'][current_time_index] * 4, 0, viewpoint_testset['z'][current_time_index] * 4);
+        current_time_index = current_time_index + 1;
+    }
+};
+
+setInterval(function () {
+    change_view();
+}, 10);
+
+
 
 export { return_scene };

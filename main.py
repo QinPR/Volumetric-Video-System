@@ -35,11 +35,11 @@ total_spend_time = 0
 spend_time_list = []
 # PLY_Data_List = sorted(os.listdir(config.Full_Data_Path))
 PLY_Data_Dir_List = sorted(os.listdir(config.Full_Data_Path))
-# PLY_Data_List = ['{}/block1.ply'.format(i) for i in PLY_Data_Dir_List]
-PLY_Data_List = []
-for i in PLY_Data_Dir_List: 
-    if i[-4:] == '.ply':
-        PLY_Data_List.append(i)
+PLY_Data_List = ['{}/block1.ply'.format(i) for i in PLY_Data_Dir_List]
+# PLY_Data_List = []
+# for i in PLY_Data_Dir_List: 
+#     if i[-4:] == '.ply':
+#         PLY_Data_List.append(i)
 
 async def index(request):
     '''
@@ -70,6 +70,14 @@ async def visualize_3d(request):
         js
     '''
     content = open("./js/visualize_3d.js", "r").read()
+    return web.Response(content_type="application/javascript", text=content)
+
+
+async def viewport_change(request):
+    '''
+        js
+    '''
+    content = open("./js/viewport_change.json", "r").read()
     return web.Response(content_type="application/javascript", text=content)
 
 
@@ -233,12 +241,12 @@ async def on_shutdown(app):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Volumentric Video System")
-    # parser.add_argument(
-    #     "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
-    # )
     parser.add_argument(
-        "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
+        "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
     )
+    # parser.add_argument(
+    #     "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
+    # )
     parser.add_argument(
         "--port", type=int, default=42345, help="Port for HTTP server (default: 42345)"
     )
@@ -253,5 +261,6 @@ if __name__ == "__main__":
     app.router.add_get("/js/client.js", client_js)
     app.router.add_get("/js/pcd_loader.js", pcd_loader_js)
     app.router.add_get("/js/visualize_3d.js", visualize_3d)
+    app.router.add_get("/js/viewport_change.json", viewport_change)
     app.router.add_post("/offer", offer)
     web.run_app(app, host=args.host, port=args.port)
