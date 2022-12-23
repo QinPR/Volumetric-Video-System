@@ -33,8 +33,13 @@ Timer = -1
 current_file_index = 0
 total_spend_time = 0
 spend_time_list = []
-PLY_Data_List = sorted(os.listdir(config.Full_Data_Path))
-
+# PLY_Data_List = sorted(os.listdir(config.Full_Data_Path))
+PLY_Data_Dir_List = sorted(os.listdir(config.Full_Data_Path))
+# PLY_Data_List = ['{}/block1.ply'.format(i) for i in PLY_Data_Dir_List]
+PLY_Data_List = []
+for i in PLY_Data_Dir_List: 
+    if i[-4:] == '.ply':
+        PLY_Data_List.append(i)
 
 async def index(request):
     '''
@@ -204,7 +209,6 @@ async def server(pc, offer, data_channel):
                             channel.send(send_string)
                             start_index += vertice_chunk_size
                             logger.info('OK here')
-                            time.sleep(0.5)
                         channel.send('end frame')
             else:
                 logger.info('The State of DataChannel is not ready.')
@@ -229,12 +233,12 @@ async def on_shutdown(app):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Volumentric Video System")
-    parser.add_argument(
-        "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
-    )
     # parser.add_argument(
-    #     "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
+    #     "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
     # )
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
+    )
     parser.add_argument(
         "--port", type=int, default=42345, help="Port for HTTP server (default: 42345)"
     )
