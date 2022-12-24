@@ -1,3 +1,5 @@
+import {return_viewpoint_x, return_viewpoint_y, return_viewpoint_z } from './visualize_3d.js'
+
 var current_cache_store_index = 0;
 let caught = 0;
 
@@ -50,6 +52,9 @@ function negotiate () {
 	});
 }
 
+var sendChannel = null;
+var is_send_channel_open = 0;
+
 function start () {
 	// User End
 	// The connection params of WebRTC
@@ -62,7 +67,7 @@ function start () {
 	pc = new RTCPeerConnection(config);
 
 	// Create the Channel to transmit data.
-	var sendChannel = pc.createDataChannel('sendDataChannel');
+	sendChannel = pc.createDataChannel('sendDataChannel');
 
 	// Send the file to server end through RTC
 	sendChannel.onopen = (_) => {
@@ -74,19 +79,14 @@ function start () {
 	sendChannel.onmessage = (event) => {
 		if (event.data == 'Server End Establish Data Channel'){
 			console.log('Receive Estabalish Channel');
+			is_send_channel_open = 1;
 			sendChannel.send('Start Transmit');    // Start transmit the data.
 		}
 		else if (event.data == 'over'){      // All the data has been transmitted.
 			console.log('All the files has been transmitted.')
 		}
-		// else if (event.data == 'start frame'){
-		// 	console.log('Receive start frame');
-		// }
 		else if (event.data == 'end frame'){
 			console.log('Receive end frame');
-			// THREE.Cache.add(current_cache_store_index.toString(), new Float32Array(send_array));
-			// current_cache_store_index += 1
-			// caught += 1;
 			clear = 1;
 			sendChannel.send('Start Transmit');    // Start transmit the data.
 		}
@@ -104,6 +104,23 @@ function start () {
 	console.log('Start to negotiate!');
 	negotiate();
 }
+
+var viewpoint_x = '';
+var viewpoint_y = '';
+var viewpoint_z = '';
+function send_viewpoint(){
+
+	viewpoint_x = return_viewpoint_x().toString();
+	viewpoint_y = return_viewpoint_y().toString();
+	viewpoint_z = return_viewpoint_z().toString();
+	if (is_send_channel_open == 1){
+		sendChannel.send('[viewpoint]' + viewpoint_x + ' ' + viewpoint_y + ' ' + viewpoint_z);
+	};
+};
+
+setInterval(function () {
+    send_viewpoint();
+}, 10);
 
 
 function return_caught(){

@@ -48,6 +48,14 @@
 
 ---
 
+### 3. Tiling into Cylinder
+
+![1671432992968](./pictures/cylinder1.JPG)
+
++ Now, the whole point cloud is total cut into 8 sectors. Then, it is further cut horizontally by half. Therefore, now there are totally 16 segments.
+
+---
+
 ### 3. Streaming After Tiling
 
 The Upload Speed now is 6Mbps

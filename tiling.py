@@ -85,6 +85,7 @@ def calculate_angle(df):
     elif df['z'] - center[2] < 0 and df['x'] - center[0] >= 0:
         return 2 * math.pi + angle
 
+
 def tiling_cylinder(file_path: str, store_path: str = '.', sector_num: int = 6, height_num: int = 2):
     '''
         Given a path of a point-cloud, cut it into the specific number of sectors.
@@ -102,7 +103,10 @@ def tiling_cylinder(file_path: str, store_path: str = '.', sector_num: int = 6, 
             data_np[:, i] = data_pd[name]
 
         # Find the certer point
-        center = (np.mean(data_pd['x']), np.mean(data_pd['y']), np.mean(data_pd['z']))
+        copy_data_pd = data_pd.copy(deep=True)
+        copy_data_pd = copy_data_pd.loc[(copy_data_pd['y'] > -0.6) & (copy_data_pd['y'] < 1)]    # remove the upper noise and ground
+        center = (np.mean(copy_data_pd['x']), np.mean(copy_data_pd['y']), np.mean(copy_data_pd['z']))
+        print(center)
         data_pd['angle'] = data_pd.apply(calculate_angle, axis = 1)
         alpha = 2 * math.pi / sector_num
     
@@ -120,6 +124,7 @@ def tiling_cylinder(file_path: str, store_path: str = '.', sector_num: int = 6, 
                 # append the header of the ply file.
                 ply_file_path = '{}\\sector{}_{}.ply'.format(directory_path, sector_index, height_index)
                 if os.path.exists(ply_file_path):
+                    print('Already exist!')
                     continue    # avoid calculate repeatly.
                 f = open(file_path)
                 line = ''
@@ -144,7 +149,7 @@ def tiling_cylinder(file_path: str, store_path: str = '.', sector_num: int = 6, 
                                 ply_file.write(str(int(each_tuple[element_i])))
                             else: 
                                 ply_file.write(str(each_tuple[element_i]))
-                            if element_i == len(each_tuple) - 1:
+                            if element_i == 6:
                                 ply_file.write('\n')
                             else:
                                 ply_file.write(' ')
@@ -172,12 +177,13 @@ if __name__ == '__main__':
     for i in path_list_tmp:
         if i[-4:] == '.ply':
             path_list.append(i)
-    store_path = '{}\{}cylinders'.format(path_dir, '6')
+    sector_num = 8
+    store_path = '{}\{}cylinders'.format(path_dir, sector_num)
     
     if not os.path.exists(store_path):
         os.mkdir(store_path)
     for each_path in path_list:
-        tiling_cylinder('{}\{}'.format(path_dir, each_path), store_path)
+        tiling_cylinder('{}\{}'.format(path_dir, each_path), store_path, 8)
 
 
 

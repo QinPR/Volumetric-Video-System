@@ -34,7 +34,6 @@ def load_dataset() -> dict:
         train = 1
         if each_traning_exp_group_i > len(training_exp_list) * config.trainining_validation_split:
             train = 0     # for validation
-            logger.info(training_exp_list[each_traning_exp_group_i])
         each_traning_exp_group = training_exp_list[each_traning_exp_group_i]
         exp_path = '{}\\{}'.format(config.Viewpoint_Dataset, each_traning_exp_group)
         detailed_exp_list = os.listdir(exp_path)
@@ -62,7 +61,7 @@ class GBDT:
         self.pred_window = config.pred_window
         self.GBDT_Model = GradientBoostingRegressor(n_estimators=100, learning_rate=0.5, max_depth=2, random_state=0)
         
-    def train(self):
+    def train(self, target = 'x'):
 
         reorganize_dataset_x = []
         reorganize_dataset_y = []
@@ -72,7 +71,7 @@ class GBDT:
             while start_index + self.train_window + self.pred_window < each_dataset.shape[0]:
                 train_x = each_dataset[start_index:start_index + self.train_window]
                 train_x = train_x.to_numpy().flatten()
-                train_y = each_dataset[start_index + self.train_window: start_index + self.train_window + self.pred_window]['HmdPosition.x']
+                train_y = each_dataset[start_index + self.train_window: start_index + self.train_window + self.pred_window]['HmdPosition.{}'.format(target)]
                 train_y = train_y.to_numpy().flatten()
                 reorganize_dataset_x.append(train_x[:])
                 reorganize_dataset_y.append(train_y[:])
@@ -80,11 +79,11 @@ class GBDT:
         self.GBDT_Model.fit(reorganize_dataset_x, reorganize_dataset_y)
         logger.info('Training score = {}'.format(self.GBDT_Model.score(reorganize_dataset_x, reorganize_dataset_y)))
 
-        joblib.dump(self.GBDT_Model, 'Trained_GBDT_Model.pkl')
+        joblib.dump(self.GBDT_Model, '{}_Trained_GBDT_Model.pkl'.format(target))
 
-    def valiate(self):
+    def valiate(self, target = 'x'):
 
-        self.GBDT_Model = joblib.load('Trained_GBDT_Model.pkl')
+        self.GBDT_Model = joblib.load('{}_Trained_GBDT_Model.pkl'.format(target))
         reorganize_dataset_x = []
         reorganize_dataset_y = []
         for each_exp in self.valset.keys():
@@ -93,7 +92,7 @@ class GBDT:
             while start_index + self.train_window + self.pred_window < each_dataset.shape[0]:
                 train_x = each_dataset[start_index:start_index + self.train_window]
                 train_x = train_x.to_numpy().flatten()
-                train_y = each_dataset[start_index + self.train_window: start_index + self.train_window + self.pred_window]['HmdPosition.x']
+                train_y = each_dataset[start_index + self.train_window: start_index + self.train_window + self.pred_window]['HmdPosition.{}'.format(target)]
                 train_y = train_y.to_numpy().flatten()
                 reorganize_dataset_x.append(train_x[:])
                 reorganize_dataset_y.append(train_y[:])
@@ -112,6 +111,8 @@ if __name__ == '__main__':
 
     GBDT_instance = GBDT(train, val)
 
-    GBDT_instance.train()
+    target = 'z'
 
-    GBDT_instance.valiate()
+    GBDT_instance.train(target)
+
+    GBDT_instance.valiate(target)

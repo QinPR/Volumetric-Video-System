@@ -12,6 +12,7 @@ import ssl
 import time
 import json
 import sys
+import math
 
 from aiohttp import web
 from aiortc import (
@@ -23,6 +24,7 @@ import psutil
 import pandas as pd
 import numpy as np
 import ujson
+import joblib
 from plyfile import PlyData, PlyElement
 
 import config as config
@@ -33,13 +35,25 @@ Timer = -1
 current_file_index = 0
 total_spend_time = 0
 spend_time_list = []
-# PLY_Data_List = sorted(os.listdir(config.Full_Data_Path))
-PLY_Data_Dir_List = sorted(os.listdir(config.Full_Data_Path))
-PLY_Data_List = ['{}/block1.ply'.format(i) for i in PLY_Data_Dir_List]
+vertical_indices = [4, 5, 6, 7]
+hori_indices = [0, 1]
+# PLY_Data_List = os.listdir(config.Full_Data_Path)
 # PLY_Data_List = []
 # for i in PLY_Data_Dir_List: 
 #     if i[-4:] == '.ply':
 #         PLY_Data_List.append(i)
+PLY_Data_List = os.listdir(config.Full_Data_Path)
+
+
+# GBDT Model
+x_GBDT_Model = joblib.load('x_Trained_GBDT_Model.pkl')
+z_GBDT_Model = joblib.load('z_Trained_GBDT_Model.pkl')
+    # We let alone y axis for future work
+viewpoint_queue = []
+center = (-0.09303445, 0.1593566, 0.2598027)
+alpha = 2 * math.pi / config.horizontal_tiling
+
+
 
 async def index(request):
     '''
@@ -134,6 +148,55 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+
+def determine_sectors():
+    '''
+        Determine the sectors to be sent based on the prediction of viewpoint(camera's position)
+    '''
+    
+    vertical_indices = []
+    hori_indices = [0, 1]
+
+    input_array = np.array(viewpoint_queue).flatten().reshape(1, -1)
+    x_result = x_GBDT_Model.predict(input_array)[0]
+    z_result = z_GBDT_Model.predict(input_array)[0]
+    y_result = 0  # we let alone y-axis as the future work
+    
+    angle = math.atan((z_result - center[2]) / (x_result - center[0]))
+    if z_result - center[2] > 0 and x_result - center[0] <= 0:
+        angle = math.pi + angle
+    elif z_result - center[2] <= 0 and x_result - center[0] < 0:
+        angle = math.pi + angle
+    elif z_result - center[2] < 0 and x_result - center[0] >= 0:
+        angle = 2 * math.pi + angle
+
+    for sector_index in range(config.horizontal_tiling):
+        if angle >= sector_index * alpha and angle < (sector_index + 1) * alpha:
+            logger.info('The predict sector is {}'.format(sector_index))
+            left_sector_index = sector_index + 1
+            if left_sector_index >= config.horizontal_tiling:
+                left_sector_index -= config.horizontal_tiling
+
+            left_left_sector_index = sector_index + 2
+            if left_left_sector_index >= config.horizontal_tiling:
+                left_left_sector_index -= config.horizontal_tiling
+
+            right_sector_index = sector_index - 1
+            if right_sector_index < 0:
+                right_sector_index += config.horizontal_tiling
+
+            right_right_sector_index = sector_index - 2
+            if right_right_sector_index < 0:
+                right_right_sector_index += config.horizontal_tiling
+
+            
+            vertical_indices = [sector_index, left_sector_index, right_sector_index, right_right_sector_index, left_left_sector_index]
+            break
+            
+    return vertical_indices, hori_indices
+
+
+
 async def server(pc, offer, data_channel):
     # Listen the connection status of RTC
     @pc.on("connectionstatechange")
@@ -157,7 +220,7 @@ async def server(pc, offer, data_channel):
 
     # Listen the Data from the user end, and start transmit the volumetric data to user end.
     @pc.on("datachannel")
-    def on_message(channel, vertice_chunk_size: int = 50000):
+    def on_message(channel, vertice_chunk_size: int = 60000):
         '''
             vertice_chunk_size: The maximum number of vertices to be transmitted in one time
         '''
@@ -168,9 +231,11 @@ async def server(pc, offer, data_channel):
             global total_spend_time
             global current_file_index
             global spend_time_list
+            global vertical_indices
+            global hori_indices
+            global viewpoint_queue
             if channel.readyState == 'open':
                 if message == 'User End Establish Data Channel':    # The User end establish the data channel.
-                    #logger.info('The current speed is {}Mbps'.format(speed_test()))
                     channel.send('Server End Establish Data Channel')
                 elif message == 'Start Transmit':
                     if Timer != -1:
@@ -190,25 +255,26 @@ async def server(pc, offer, data_channel):
                         with open('./result1.json', 'w') as f:
                             json.dump({'time': spend_time_list}, f)
                     else:
-                        file_path = '{}\{}'.format(config.Full_Data_Path, PLY_Data_List[current_file_index])
-                        file_size = os.path.getsize(file_path) / 1024 / 1024
+                        file_size = 0
+                        df_list = []
+                        for ver_index in vertical_indices:
+                            for hori_index in hori_indices:
+                                file_path = '{}\{}\sector{}_{}.ply'.format(config.Full_Data_Path, PLY_Data_List[current_file_index], ver_index, hori_index)
+                                file_size += os.path.getsize(file_path) / 1024 / 1024        
+                                plydata = PlyData.read(file_path)
+                                rawdata = plydata.elements[0].data
+                                df_list.append(pd.DataFrame(rawdata))
+                        data_pd = pd.concat(df_list)
+
                         logger.info('=' * 40)
-                        logger.info('Begin to transmit {} (size = {}Mb)'.format(PLY_Data_List[current_file_index], file_size))
-                        # with open(file_path) as f:
-                            # channel.send(f.read())
-                        
-                        plydata = PlyData.read(file_path)
-                        rawdata = plydata.elements[0].data
-                        data_pd = pd.DataFrame(rawdata)
+                        logger.info('Begin to transmit {} (size = {}Mb)'.format(PLY_Data_List[current_file_index], file_size))    
+
                         data_np = np.zeros((data_pd.shape[0], 3), dtype=np.float32)
                         property_names = rawdata[0].dtype.names
                         for i, name in enumerate(('x', 'y', 'z')):
                             data_np[:, i] = data_pd[name]
-
                         Timer = time.time()    # Timer Start!
-                        
                         start_index = 0
-                        # channel.send('start frame')
                         while start_index < data_np.shape[0]:
                             if start_index + vertice_chunk_size > data_np.shape[0]:
                                 send_string = ujson.dumps(data_np[start_index:].flatten().tolist())
@@ -218,6 +284,21 @@ async def server(pc, offer, data_channel):
                             start_index += vertice_chunk_size
                             logger.info('OK here')
                         channel.send('end frame')
+
+                elif message[:11] == '[viewpoint]':
+                    # If tiling, determine which sector to be transmit
+                    if config.vertical_tiling > 0 or config.horizontal_tiling > 0:
+                        viewpoint_x = message[11:].split(' ')[0]
+                        viewpoint_y = message[11:].split(' ')[1]
+                        viewpoint_z = message[11:].split(' ')[2]
+                        viewpoint = [viewpoint_x, viewpoint_y, viewpoint_z]
+                        if len(viewpoint_queue) == 0:
+                            viewpoint_queue = [viewpoint for _ in range(config.train_window)]
+                        else:
+                            viewpoint_queue.pop(0)
+                            viewpoint_queue.append(viewpoint)
+                        vertical_indices, hori_indices = determine_sectors()
+                    
             else:
                 logger.info('The State of DataChannel is not ready.')
 
@@ -241,12 +322,12 @@ async def on_shutdown(app):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Volumentric Video System")
-    parser.add_argument(
-        "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
-    )
     # parser.add_argument(
-    #     "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
+    #     "--host", default="localhost", help="Host for HTTP server (default: 0.0.0.0)"
     # )
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Host for HTTP server (default: 0.0.0.0)"
+    )
     parser.add_argument(
         "--port", type=int, default=42345, help="Port for HTTP server (default: 42345)"
     )

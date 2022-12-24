@@ -13,7 +13,7 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setClearColor('rgb(255,255,255)', 0);
 document.body.appendChild( renderer.domElement );
 
-camera.position.set(0.535 * 4, 0, 0.575 * 4);
+camera.position.set(-0.246 * 3, 0, -0.636 * 3);
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 var display_object = null;
 var pointcloud = null;
@@ -57,7 +57,6 @@ setInterval(function () {
 
 
 var current_time_index = 1;    // every one means 10ms
-var current_view_point = null;
 var viewpoint_testset = null;
 var get_dataset = 0;   // A flag indicating whether the dataset is loaded.
 var url = './js/viewport_change.json';
@@ -71,10 +70,21 @@ request.onload = function() {
     }
 }
 
+var viewpoint_x = 0;
+var viewpoint_z = 0;
+var viewpoint_y = 0;
+var viewpoint_speed = 0.0005;
+
 function change_view() {
     if (get_dataset == 1){
-        current_view_point = [viewpoint_testset['x'][current_time_index]  * 4, 0, viewpoint_testset['z'][current_time_index] * 4];
-        camera.position.set(viewpoint_testset['x'][current_time_index] * 4, 0, viewpoint_testset['z'][current_time_index] * 4);
+        viewpoint_z = viewpoint_testset['z'][current_time_index] * 3 + current_time_index * viewpoint_speed;
+        if (viewpoint_z < 0){
+            viewpoint_x = viewpoint_testset['x'][current_time_index] * 3 - current_time_index * viewpoint_speed;
+        }else{
+            viewpoint_x = viewpoint_testset['x'][current_time_index] * 3 - 1.6;
+        }
+        camera.position.set(viewpoint_x, viewpoint_y, viewpoint_z);
+        camera.lookAt(new THREE.Vector3(0, 0, 0));
         current_time_index = current_time_index + 1;
     }
 };
@@ -84,5 +94,19 @@ setInterval(function () {
 }, 10);
 
 
+function return_viewpoint_x(){
+    return viewpoint_x;
+};
 
-export { return_scene };
+
+function return_viewpoint_y(){
+    return viewpoint_y;
+};
+
+
+function return_viewpoint_z(){
+    return viewpoint_z;
+};
+
+
+export { return_scene , return_viewpoint_x, return_viewpoint_y, return_viewpoint_z };
