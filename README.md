@@ -1,7 +1,7 @@
 ### Volumentric Video System  
 ---  
 #### Introduction   
-+ This is a system for Volumetric Video Streaming. Now a simple implementation of 'End to End' transmision is completed. The system now can transmit the pointcloud data from server end to user end through WebRTC and measure the transmitting time of each ply file, as well as the total transmission time.  
++ This is a system for Volumetric Video Streaming. Now a simple implementation of 'End to End' transmision equiped with point-cloud tiling and viewpoint prediction is completed. The system now can transmit the pointcloud data from server end to user end through WebRTC and measure the transmitting time of each ply file, as well as the total transmission time.  
 
 #### How to Run the Code  
 + Please run this code in server end, and open the port(default: 42345) so that the user end can access the server end.  
